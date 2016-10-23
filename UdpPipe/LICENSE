@@ -1,11 +1,13 @@
-This software is written by Mark Liebrand (Copyright)
+Copyright (C) 2016  Mark Liebrand
 
-You are free to:
-
-Share — copy and redistribute the material in any medium or format
-Adapt — remix, transform, and build upon the material
-for any purpose, even commercially.
-
-No warranties are given. There is no commitment that this software is suitable for a particular purpose.
-
-Use the software at your own risk. The author shall not be held liable for any damage created by using this software.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+ 
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details. 
+ 
+See <http://www.gnu.org/licenses/>.
