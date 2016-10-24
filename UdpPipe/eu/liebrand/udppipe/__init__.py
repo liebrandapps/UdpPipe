@@ -191,9 +191,8 @@ class Head(PipeBase):
                 (clientSocket, address) = self.pipeSocket.accept()
                 if self.enableHostNameCheck:
                     data = socket.gethostbyname(self.tailHostname)
-                    ip = repr(data)
-                    if address[0]!=ip:
-                        self.log.warn("[Head] Connection attempt from wrong IP (%s but expected %s)" % (address[0], ip))
+                    if address[0]!=data:
+                        self.log.warn("[Head] Connection attempt from wrong IP (%s but expected %s)" % (address[0], data))
                         clientSocket.close()
                         continue
                 self.log.info("[Head] Connection from tail at %s:%d" % (address[0], address[1]))
@@ -335,7 +334,7 @@ class Head(PipeBase):
                                     ctlBuffer.close()
                                     break
                     now=datetime.datetime.now()
-                    if (now-lastReport).seconds>=3600:
+                    if (now-lastReport).seconds>=(3600*24):
                         self.logStats(0, None)
                         lastReport=now
             except socket.error as e:
@@ -453,7 +452,7 @@ class Tail(PipeBase):
                         dataBuffer.close()
                         ctlBuffer.close()
                         now=datetime.datetime.now()
-                        if (now-lastReport).seconds>=3600:
+                        if (now-lastReport).seconds>=(3600*24):
                             self.logStats(0, None)
                             lastReport=now
                         continue
@@ -542,6 +541,7 @@ class Tail(PipeBase):
                     servSocket.close()
                     self.connected=False
                     time.sleep(Tail.WAIT4RETRY)
+                    servSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 else:
                     raise
         self.logStats(0, None)
@@ -591,6 +591,8 @@ class Tail(PipeBase):
                     os.write(self.controlPipe[1], 'x')
                     self.log.debug("[Tail] Received %d bytes from local address %s:%d" % (len(udpData), address[0], address[1]))
                     lastAction=datetime.datetime.now()
+                    self.UDPBytesIn+=len(udpData)
+                    self.packetsIn+=1
                     
         # upon exit we need to remove the queue object to avoid receiving more requests
         self.sourceIdLock.acquire()
