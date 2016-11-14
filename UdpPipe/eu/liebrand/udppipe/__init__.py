@@ -539,6 +539,7 @@ class Tail(PipeBase):
                 elif e.errno==errno.ECONNREFUSED or e.errno==errno.EBADF or e.errno==errno.ECONNRESET:
                     self.log.warn("[Tail] Unable to connect to host %s:%d. Will try again in %d seconds.(Reason %s)" % (self.headHost,self.headPort, Tail.WAIT4RETRY, str(e)))
                     servSocket.close()
+                    self.fds.remove(servSocket)
                     self.connected=False
                     time.sleep(Tail.WAIT4RETRY)
                     servSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
