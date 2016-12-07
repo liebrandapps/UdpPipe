@@ -219,7 +219,7 @@ class Head(PipeBase):
                 lastReport=datetime.datetime.now()
                 while not(self._terminate) and tailConnection:
                     try:
-                        ready=select.select(socketArray, [], [], 3600)
+                        ready=select.select(socketArray, [], [], 180)
                     except select.error, (_errno, _strerror):
                         if _errno == errno.EINTR:
                             continue
@@ -287,6 +287,7 @@ class Head(PipeBase):
                                         if not(found):
                                             lstCfg[2].close()
                                             self.listenerConfig.remove(lstCfg)
+                                            socketArray.remove(lstCfg[2])
                                             self.log.info("[Head] Deleted UDP Listener <%s> on port <%d>" % (lstCfg[0], lstCfg[1]))            
                                     continue
                                 # find the outbound socket
@@ -303,6 +304,7 @@ class Head(PipeBase):
                                         break
                                 if not(found):
                                     self.log.warn("[Head] Received a response for an unknown client on port %d" % (fields['srvPort']))
+                                continue
                                     
                             for lstCfg in self.listenerConfig:
                                 if r==lstCfg[2]:
@@ -333,6 +335,10 @@ class Head(PipeBase):
                                     dataBuffer.close()
                                     ctlBuffer.close()
                                     break
+                    else:
+                        self.log.warn("[Head] No activity for 180 seconds, assumung Tail is absent")
+                        socketArray.remove(clientSocket)
+                        tailConnection=False
                     now=datetime.datetime.now()
                     if (now-lastReport).seconds>=(3600*24):
                         self.logStats(0, None)
@@ -343,10 +349,13 @@ class Head(PipeBase):
                 elif e.errno == errno.ECONNRESET:
                     self.log.warn("[Head] Tail disconnected")
                     socketArray.remove(clientSocket)
+                    tailConnection=False
                 else:
+                    self.log.exception(e)
                     raise
             except Exception as e:            
                 self.log.exception(e)
+                raise
                 
                 
 class Tail(PipeBase):
