@@ -24,6 +24,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 import json
+import traceback
 
 
 
@@ -86,7 +87,8 @@ class DateTimeEncoder(json.JSONEncoder):
         if isinstance(obj, datetime.datetime):
             return {
                 '__type__' : 'seconds',
-                'seconds' : time.mktime(obj.timetuple()),
+                'seconds' : int(obj.strftime('%s')),
+                'info' : str(obj)
             }   
         else:
             return json.JSONEncoder.default(self, obj)
@@ -160,6 +162,7 @@ class PipeBase:
         self.reconnects=0
         signal.signal(signal.SIGUSR1, self.toggleLogLevel)
         signal.signal(signal.SIGUSR2, self.logStats)
+        signal.signal(signal.SIGQUIT, self.dumpstacks)
         self.startTime=datetime.datetime.now()
         self.lastPing=None
 
@@ -198,10 +201,22 @@ class PipeBase:
         self.log.info("[%s] UDP Traffic %d bytes in, %d bytes out, TCP Traffic %d bytes in, %d bytes out" % (self.section, self.UDPBytesIn, self.UDPBytesOut, self.TCPBytesIn, self.TCPBytesOut))
         self.log.info("[%s] Uptime %s, Reconnects %d" % (self.section, str(uptime), self.reconnects))
         if self.lastPing is None:
-            self.log.info("[%s] Last Ping: never")
+            self.log.info("[%s] Last Ping: never" % (self.section))
         else:
             ago=now-self.lastPing
             self.log.info("[%s] Last Ping: %s (%s ago)" % (self.section, str(self.lastPing), str(ago)))
+
+    def dumpstacks(self, signal, frame):
+        id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+        code = []
+        for threadId, stack in sys._current_frames().items():
+            code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
+            for filename, lineno, name, line in traceback.extract_stack(stack):
+                code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+                if line:
+                    code.append("  %s" % (line.strip()))
+            code.append("\n###########################################################")
+        self.log.info("\n".join(code))
         
     def readConfig(self, cfg):
         #cfg.set(self.section, PipeBase.KEY_CFGFILE)
@@ -267,9 +282,7 @@ class Head(PipeBase):
         if self.enableHostNameCheck:
             self.tailHostname=cfg.tailHostname
         self.enableAdmin=cfg.enableAdmin
-        if self.enableAdmin:
-            self.adminPort=cfg.adminPort
-            self.publicKey=cfg.publicKey
+        
          
     def run(self):
         # Important: logging cannot be setup any earlier as the RotatingFileHandler produces errors
@@ -388,7 +401,7 @@ class Head(PipeBase):
                                             if k==lstCfg[0]:
                                                 found=True
                                                 # existing ID
-                                                if fields[k]!=lstCfg[1]:
+                                                if fields['++' + k]!=lstCfg[1]:
                                                     # listening port changed
                                                     self.log.info("[Head] Received new port for service id %s (old %d -> new %d)" % (k, lstCfg[1], fields[k]))
                                                     lstCfg[2].close()
@@ -499,6 +512,9 @@ class Head(PipeBase):
                 else:
                     self.log.exception(socket.error)
                     self._terminateThread=True
+            except Exception as e:            
+                self.log.exception(e)
+                self._terminateThread=True
         if clientSocket in socketArray:
             socketArray.remove(clientSocket)
         self.isThreadRunning=False
