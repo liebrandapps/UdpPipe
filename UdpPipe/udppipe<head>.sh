@@ -3,4 +3,4 @@
 # pid file is by default /tmp/udppipe.pid
 # log file is by default /tmp/udppipe.log
 export PYTHONPATH=.
-python eu/liebrand/udppipe/__init__.py $1 -H
+python eu/liebrand/udppipe/Pipe.py $1 -H
