@@ -1010,7 +1010,7 @@ class Tail(PipeBase):
                     os.read(localfds[0],1)
                     while not(queue.empty()):
                         if self._terminate:
-                            continue
+                            break
                         #output udp, we should have sthg in the queue   
                         try:
                             data=queue.get(True, 5)
