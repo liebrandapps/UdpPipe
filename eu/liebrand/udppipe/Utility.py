@@ -32,7 +32,7 @@ class SockWrite(SockIOData):
 
     
     def writeString(self, key, value, bytesIO):
-        bytesIO.write(SockIOData.typeString)
+        bytesIO.write(bytes(SockIOData.typeString))
         self.__writeRawString(key, bytesIO)
         self.__writeRawString(value, bytesIO)
 
