@@ -99,10 +99,7 @@ class SockRead(SockIOData):
     # Returns a tuple
     # dataType, key, value
     def read(self, bytesIO):
-        tmp=bytesIO.read(1)
-        if len(tmp)==0:
-            raise SockIOException()
-        typ=ord(tmp)    
+        typ=bytesIO.read(1)
         key, value = { SockIOData.typeString : lambda : (self.__readRawString(bytesIO), self.__readRawString(bytesIO)),
                        SockIOData.typeNumber : lambda : (self.__readRawString(bytesIO), self.__readRawLong(bytesIO)),
                        SockIOData.typeBinary : lambda : (self.__readRawString(bytesIO), self.__readRawBinary(bytesIO)),
