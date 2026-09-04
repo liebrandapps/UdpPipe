@@ -427,7 +427,7 @@ class Head(PipeBase):
                             tmp=length
                             while length>0:
                                 chunk=r.recv(length)
-                                data.append(chunk)
+                                data.append(chunk.decode('UTF-8'))
                                 length-=len(chunk)
                             self.log.debug("[Head] Received %d bytes from >Tail<" % tmp)
                             self.TCPBytesIn+=tmp
