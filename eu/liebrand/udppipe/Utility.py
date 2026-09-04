@@ -45,24 +45,24 @@ class SockWrite(SockIOData):
         bytesIO.write(strg.encode('UTF-8'))
 
     def writeLongDirect(self, value, bytesIO):
-        bytesIO.write(chr(SockIOData.typeLongDirect))
+        bytesIO.write(bytes(SockIOData.typeLongDirect))
         Byte0=int(abs(value / 16777216))
         value=value % 16777216
         Byte1=int(abs(value / 65536))
         value=value % 65536
         Byte2=int(abs(value / 256))
         Byte3=value % 256
-        bytesIO.write(chr(Byte0))
-        bytesIO.write(chr(Byte1))
-        bytesIO.write(chr(Byte2))
-        bytesIO.write(chr(Byte3))
+        bytesIO.write(bytes(Byte0))
+        bytesIO.write(bytes(Byte1))
+        bytesIO.write(bytes(Byte2))
+        bytesIO.write(bytes(Byte3))
 
         
     def writeBinaryDirect(self, value, bytesIO):
         bytesIO.write(value)
         
     def writeBinary(self, key, value, bytesIO):
-        bytesIO.write(chr(SockIOData.typeBinary))
+        bytesIO.write(bytes(SockIOData.typeBinary))
         self.__writeRawString(key, bytesIO)
         ln=len(value)
         Byte0=int(abs(ln / 16777216))
@@ -71,10 +71,10 @@ class SockWrite(SockIOData):
         ln=ln % 65536
         Byte2=int(abs(ln / 256))
         Byte3=ln % 256
-        bytesIO.write(chr(Byte0))
-        bytesIO.write(chr(Byte1))
-        bytesIO.write(chr(Byte2))
-        bytesIO.write(chr(Byte3))
+        bytesIO.write(bytes(Byte0))
+        bytesIO.write(bytes(Byte1))
+        bytesIO.write(bytes(Byte2))
+        bytesIO.write(bytes(Byte3))
         bytesIO.write(value)
         
     def writeLong(self, key, value, bytesIO):
