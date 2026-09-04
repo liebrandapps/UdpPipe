@@ -600,7 +600,7 @@ class Head(PipeBase):
                 while len(dta)<5:
                     dta+=clientSocket.recv(5-len(dta))
                 sockRd= eu.liebrand.udppipe.Utility.SockRead()
-                buf=StringIO(dta)
+                buf=StringIO(dta.decode('UTF-8'))
                 _,_,length=sockRd.read(buf)
                 data=[]
                 tmp=length
@@ -699,7 +699,7 @@ class Head(PipeBase):
                 dta=ctlBuffer.getvalue()
                 bytesSnd=0
                 while bytesSnd<len(dta):
-                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
+                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:].encode('UTF-8'))
                 buf.close()
                 ctlBuffer.close()
                 self.log.info("[Head] Send %d bytes to >Admin<" % bytesSnd)
@@ -879,7 +879,7 @@ class Tail(PipeBase):
                         dta=ctlBuffer.getvalue()
                         bytesSnd=0
                         while bytesSnd<len(dta):
-                            bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
+                            bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:].encode('UTF-8'))
                         dataBuffer.close()
                         ctlBuffer.close()
                         now=datetime.datetime.now()
@@ -898,7 +898,7 @@ class Tail(PipeBase):
                                 continue
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
-                            buf=StringIO(dta)
+                            buf=StringIO(dta.decode('UTF-8'))
                             _,_,length=sockRd.read(buf)
                             self.log.debug("[Tail] Received %ld bytes from >Head<" % length)
                             data=[]
@@ -919,7 +919,7 @@ class Tail(PipeBase):
                                     self.log.debug("[Tail] Adding packet to existing handler")
                                     self.sourceIds[sourceId][0].put(fields)
                                     #wake up thread
-                                    os.write(self.sourceIds[sourceId][1][1],'x')
+                                    os.write(self.sourceIds[sourceId][1][1],b'x')
                                 else:
                                     self.log.debug("[Tail] Creating new handler for source id %s" % sourceId)
                                     found=False
@@ -1002,7 +1002,7 @@ class Tail(PipeBase):
                 ready=select.select([localfds[0], udpSocket], [], [], self.timeout)
             else:
                 ready=[[localfds[0]],]
-                os.write(localfds[1], 'x')
+                os.write(localfds[1], b'x')
                 initial=False
             for r in ready[0]:
                 if r==localfds[0]:
@@ -1030,7 +1030,7 @@ class Tail(PipeBase):
                            PipeBase.FIELD_PORT: fields[PipeBase.FIELD_PORT],
                            PipeBase.FIELD_SRVPORT: fields[PipeBase.FIELD_SRVPORT]}
                     self.responseQ.put(data)
-                    os.write(self.controlPipe[1], 'x')
+                    os.write(self.controlPipe[1], b'x')
                     self.log.debug("[Tail] Received %d bytes from local address %s:%d" % (len(udpData), address[0], address[1]))
                     lastAction=datetime.datetime.now()
                     self.UDPBytesIn+=len(udpData)
@@ -1096,7 +1096,7 @@ class Tail(PipeBase):
                 dta=ctlBuffer.getvalue()
                 bytesSnd=0
                 while bytesSnd<len(dta):
-                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
+                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:].encode('UTF-8'))
                 dataBuffer.close()
                 ctlBuffer.close()     
                 clientSocket.close()

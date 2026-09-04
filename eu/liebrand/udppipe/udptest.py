@@ -56,7 +56,7 @@ def client():
         line = sys.stdin.readline()
         if not line:
             break
-        s.sendto(line, addr)
+        s.sendto(line.encode('UTF-8'), addr)
         data, fromaddr = s.recvfrom(BUFSIZE)
         print ('client received %r from %r' % (data, fromaddr))
 
