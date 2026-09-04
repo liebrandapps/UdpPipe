@@ -226,7 +226,7 @@ def dump(src, length=8):
     N=0; result=''
     while src:
         s,src = src[:length],src[length:]
-        hexa = ' '.join(["%02X"%ord(x) for x in s])
+        hexa = ' '.join(["%02X"%x for x in s])
         s = s.translate(FILTER)
         result += "%04X   %-*s   %s\n" % (N, length*3, hexa, s)
         N+=length
