@@ -867,6 +867,8 @@ class Tail(PipeBase):
                             continue
                         else:
                             raise
+                    if self._terminate:
+                        continue
                     if len(ready[0])==0:
                         # send something every 60 seconds to avoid a timeout on the connection
                         self.log.debug("[Tail] Sending ping to head")
@@ -943,29 +945,28 @@ class Tail(PipeBase):
                                 pass
                         if r==self.controlPipe[0]:
                             os.read(self.controlPipe[0],1)
-                            if self.responseQ.not_empty:
-                                data=self.responseQ.get()
-                                dataBuffer=BytesIO()
-                                sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
-                                sockWt.writeString(PipeBase.FIELD_HOST, data[PipeBase.FIELD_HOST], dataBuffer)
-                                sockWt.writeLong(PipeBase.FIELD_PORT, data[PipeBase.FIELD_PORT], dataBuffer)
-                                sockWt.writeLong(PipeBase.FIELD_SRVPORT, data[PipeBase.FIELD_SRVPORT], dataBuffer)
-                                sockWt.writeBinary(PipeBase.FIELD_UDPDATA, data[PipeBase.FIELD_UDPDATA], dataBuffer)
-                                dta=dataBuffer.getvalue()
-                                ctlBuffer=BytesIO()
-                                sockWt.writeLongDirect(len(dta), ctlBuffer)
-                                sockWt.writeBinaryDirect(dta, ctlBuffer)
-                                dta=ctlBuffer.getvalue()
-                                bytesSnd=0
-                                while bytesSnd<len(dta):
-                                    bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
-                                dataBuffer.close()
-                                ctlBuffer.close()
-                                self.responseQ.task_done()
-                                self.TCPBytesOut+=bytesSnd
-                                self.packetsOut+=1
-                                self.log.debug("[Tail] Forwarded response packet of %d bytes for listening port %d from client %s:%d to >Head<" % \
-                                                (len(data[PipeBase.FIELD_UDPDATA]), data[PipeBase.FIELD_SRVPORT], data[PipeBase.FIELD_HOST], data[PipeBase.FIELD_PORT]  ) )
+                            data=self.responseQ.get()
+                            dataBuffer=BytesIO()
+                            sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
+                            sockWt.writeString(PipeBase.FIELD_HOST, data[PipeBase.FIELD_HOST], dataBuffer)
+                            sockWt.writeLong(PipeBase.FIELD_PORT, data[PipeBase.FIELD_PORT], dataBuffer)
+                            sockWt.writeLong(PipeBase.FIELD_SRVPORT, data[PipeBase.FIELD_SRVPORT], dataBuffer)
+                            sockWt.writeBinary(PipeBase.FIELD_UDPDATA, data[PipeBase.FIELD_UDPDATA], dataBuffer)
+                            dta=dataBuffer.getvalue()
+                            ctlBuffer=BytesIO()
+                            sockWt.writeLongDirect(len(dta), ctlBuffer)
+                            sockWt.writeBinaryDirect(dta, ctlBuffer)
+                            dta=ctlBuffer.getvalue()
+                            bytesSnd=0
+                            while bytesSnd<len(dta):
+                                bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
+                            dataBuffer.close()
+                            ctlBuffer.close()
+                            self.responseQ.task_done()
+                            self.TCPBytesOut+=bytesSnd
+                            self.packetsOut+=1
+                            self.log.debug("[Tail] Forwarded response packet of %d bytes for listening port %d from client %s:%d to >Head<" % \
+                                            (len(data[PipeBase.FIELD_UDPDATA]), data[PipeBase.FIELD_SRVPORT], data[PipeBase.FIELD_HOST], data[PipeBase.FIELD_PORT]  ) )
             except socket.error as e:
                 if e.errno == errno.EINTR and self._terminate:
                     pass
