@@ -421,7 +421,7 @@ class Head(PipeBase):
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
                             sockRd= eu.liebrand.udppipe.Utility.SockRead()
-                            eu.liebrand.udppipe.Utility.dump(dta)
+                            eu.liebrand.udppipe.Utility.dumpBytes(dta)
                             buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
                             data=[]
