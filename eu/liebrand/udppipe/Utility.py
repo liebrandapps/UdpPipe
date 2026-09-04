@@ -122,6 +122,7 @@ class ReadDictionary:
     def read(self, data):
         d = {}
         sockRd = SockRead()
+        dumpBytes(data)
         buf = BytesIO(data)
         try:
             while True:
