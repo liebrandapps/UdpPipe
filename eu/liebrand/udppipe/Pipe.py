@@ -184,8 +184,8 @@ class PipeBase:
             self.log.addHandler(self.loghdl)
             if cfg.logToConsole:
                 loghdlConsole = logging.StreamHandler(sys.stdout)
-                loghdlConsole.setFormatter(logging.Formatter(cfg.logging_msgFormat))
-                loghdlConsole.setLevel(cfg.logging_logLevel)
+                loghdlConsole.setFormatter(logging.Formatter(cfg.msgFormat))
+                loghdlConsole.setLevel(cfg.logLevel)
                 self.log.addHandler(loghdlConsole)
 
             self.log.disabled=False
