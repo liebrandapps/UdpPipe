@@ -106,7 +106,7 @@ class DateTimeDecoder(json.JSONDecoder):
 
 class PipeBase:
     
-    CONFIG_DIR= "/"
+    CONFIG_DIR= "./"
     CONFIG_FILE="udppipe.ini"
 
     SECTION_PORTCONFIG="portConfig_%d"    
