@@ -31,7 +31,7 @@ class Config:
     STRING_KEYS=["msgFormat", "logFileName", "secretKey", "id", "forwardHost",
                  "headHost", "privateKey", "publicKey", "certificate", "instanceName"]
     INT_KEYS=["maxFilesize", "listenPort", "adminPort", "forwardPort", "logLevel", "headPort", "timeout", "pipePort"]
-    BOOLEAN_KEYS=["enableLogging", "enableAdmin"]
+    BOOLEAN_KEYS=["enableLogging", "enableAdmin", "logToConsole"]
 
     DEFAULTS={"enableLogging" :"yes",
               "logFileName" : "/tmp/udppipe.log",
@@ -39,7 +39,8 @@ class Config:
               "msgFormat" : "%(asctime)s, %(levelname)s, %(module)s {%(process)d}, %(lineno)d, %(message)s",
               "logLevel" : "20",
               "enableAdmin" :"no",
-              "instanceName" : "UdpPipe Instance"
+              "instanceName" : "UdpPipe Instance",
+              "logToConsole" :"yes",
               }
 
     
@@ -181,6 +182,12 @@ class PipeBase:
             self.loghdl.setFormatter(logging.Formatter(cfg.msgFormat))
             self.loghdl.setLevel(cfg.logLevel)
             self.log.addHandler(self.loghdl)
+            if cfg.logToConsole:
+                loghdlConsole = logging.StreamHandler(sys.stdout)
+                loghdlConsole.setFormatter(logging.Formatter(cfg.logging_msgFormat))
+                loghdlConsole.setLevel(cfg.logging_logLevel)
+                self.log.addHandler(loghdlConsole)
+
             self.log.disabled=False
             self.initialLogLevel=cfg.logLevel
             self.debugLevel=False
