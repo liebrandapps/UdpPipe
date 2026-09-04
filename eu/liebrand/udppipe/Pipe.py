@@ -424,17 +424,17 @@ class Head(PipeBase):
                             eu.liebrand.udppipe.Utility.dumpBytes(dta)
                             buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
-                            data=[]
+                            data=b''
                             tmp=length
                             while length>0:
                                 chunk=r.recv(length)
-                                data.append(chunk)
+                                data+=chunk
                                 length-=len(chunk)
                             self.log.debug("[Head] Received %d bytes from >Tail<" % tmp)
                             self.TCPBytesIn+=tmp
                             self.packetsIn+=1
                             readDict= eu.liebrand.udppipe.Utility.ReadDictionary()
-                            fields=readDict.read(''.join(data))
+                            fields=readDict.read(data)
                             if fields[PipeBase.FIELD_OP]==PipeBase.VALUE_PING:
                                 self.lastPing=datetime.datetime.now()
                                 self.status=1
