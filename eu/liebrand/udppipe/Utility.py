@@ -127,6 +127,7 @@ class ReadDictionary:
         try:
             while True:
                 _, key, value = sockRd.read(buf)
+                print(key + ":" + value)
                 d[key] = value
         except SockIOException:
             pass
