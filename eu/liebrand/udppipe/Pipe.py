@@ -421,7 +421,6 @@ class Head(PipeBase):
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
                             sockRd= eu.liebrand.udppipe.Utility.SockRead()
-                            eu.liebrand.udppipe.Utility.dumpBytes(dta)
                             buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
                             data=b''
@@ -902,15 +901,16 @@ class Tail(PipeBase):
                             buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
                             self.log.debug("[Tail] Received %ld bytes from >Head<" % length)
-                            data=[]
+                            data = b''
+                            chunk = b''
                             while length>0:
                                 chunk=r.recv(length)
-                                data.append(chunk)
+                                data+=chunk
                                 length-=len(chunk)
                             self.TCPBytesIn+=len(chunk)
                             self.packetsIn+=1
                             readDict= eu.liebrand.udppipe.Utility.ReadDictionary()
-                            fields=readDict.read(''.join(data))
+                            fields=readDict.read(data)
                             # received the data as dict - now we need to find out whether we already have thread
                             # for host:port running
                             if fields[PipeBase.FIELD_OP]==PipeBase.VALUE_UDP:
