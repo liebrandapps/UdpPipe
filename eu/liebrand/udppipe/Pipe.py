@@ -106,7 +106,7 @@ class DateTimeDecoder(json.JSONDecoder):
 
 class PipeBase:
     
-    CONFIG_DIR="./"
+    CONFIG_DIR= "/"
     CONFIG_FILE="udppipe.ini"
 
     SECTION_PORTCONFIG="portConfig_%d"    
@@ -411,7 +411,7 @@ class Head(PipeBase):
                                 continue
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
-                            sockRd=eu.liebrand.udppipe.Utility.SockRead()
+                            sockRd= eu.liebrand.udppipe.Utility.SockRead()
                             buf=StringIO(dta)
                             _,_,length=sockRd.read(buf)
                             data=[]
@@ -423,7 +423,7 @@ class Head(PipeBase):
                             self.log.debug("[Head] Received %d bytes from >Tail<" % tmp)
                             self.TCPBytesIn+=tmp
                             self.packetsIn+=1
-                            readDict=eu.liebrand.udppipe.Utility.ReadDictionary()
+                            readDict= eu.liebrand.udppipe.Utility.ReadDictionary()
                             fields=readDict.read(''.join(data))
                             if fields[PipeBase.FIELD_OP]==PipeBase.VALUE_PING:
                                 self.lastPing=datetime.datetime.now()
@@ -520,7 +520,7 @@ class Head(PipeBase):
                                 self.UDPBytesIn+=len(udpData)
                                 self.packetsIn+=1
                                 # we need to send udpData, listening Port, address
-                                util=eu.liebrand.udppipe.Utility.SockWrite()
+                                util= eu.liebrand.udppipe.Utility.SockWrite()
                                 dataBuffer=StringIO()
                                 util.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
                                 util.writeString(PipeBase.FIELD_HOST, address[0], dataBuffer)
@@ -590,7 +590,7 @@ class Head(PipeBase):
                     continue
                 while len(dta)<5:
                     dta+=clientSocket.recv(5-len(dta))
-                sockRd=eu.liebrand.udppipe.Utility.SockRead()
+                sockRd= eu.liebrand.udppipe.Utility.SockRead()
                 buf=StringIO(dta)
                 _,_,length=sockRd.read(buf)
                 data=[]
@@ -601,7 +601,7 @@ class Head(PipeBase):
                     length-=len(chunk)
                 self.log.info("[Head] Received %d bytes from >Admin<" % tmp)
                 self.log.debug("[Head] Data received: %s" % (''.join(data)))
-                readDict=eu.liebrand.udppipe.Utility.ReadDictionary()
+                readDict= eu.liebrand.udppipe.Utility.ReadDictionary()
                 fields=readDict.read(''.join(data))
                 retData={}
                 if fields.has_key('payload') and fields.has_key('signature'):
@@ -679,7 +679,7 @@ class Head(PipeBase):
                             retData['status']='fail'
                 else:
                     retData['status']='fail'
-                sockWt=eu.liebrand.udppipe.Utility.SockWrite()
+                sockWt= eu.liebrand.udppipe.Utility.SockWrite()
                 buf=StringIO()
                 retStrg=json.dumps(retData, cls=DateTimeEncoder)
                 sockWt.writeString('result', retStrg, buf)
@@ -794,8 +794,8 @@ class Tail(PipeBase):
         self.controlPipe=os.pipe()
         self.fds=[]
         self.fds.append(self.controlPipe[0])
-        sockRd=eu.liebrand.udppipe.Utility.SockRead()
-        sockWt=eu.liebrand.udppipe.Utility.SockWrite()
+        sockRd= eu.liebrand.udppipe.Utility.SockRead()
+        sockWt= eu.liebrand.udppipe.Utility.SockWrite()
         
         if self.enableAdmin:
             t=threading.Thread(target=self.adminServer, name="Admin-Server launched at " + datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"))
@@ -897,7 +897,7 @@ class Tail(PipeBase):
                                 length-=len(chunk)
                             self.TCPBytesIn+=len(chunk)
                             self.packetsIn+=1
-                            readDict=eu.liebrand.udppipe.Utility.ReadDictionary()
+                            readDict= eu.liebrand.udppipe.Utility.ReadDictionary()
                             fields=readDict.read(''.join(data))
                             # received the data as dict - now we need to find out whether we already have thread
                             # for host:port running
@@ -1033,7 +1033,7 @@ class Tail(PipeBase):
 
     def adminServer(self):
         self.log.info("[Tail] Starting >Admin< Server")
-        sockWt=eu.liebrand.udppipe.Utility.SockWrite()
+        sockWt= eu.liebrand.udppipe.Utility.SockWrite()
         adminSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         adminSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         adminSocket.bind(('', self.adminPort))
