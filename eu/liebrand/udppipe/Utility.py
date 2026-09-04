@@ -86,6 +86,8 @@ class SockRead(SockIOData):
     # dataType, key, value
     def read(self, bytesIO):
         typ = int.from_bytes(bytesIO.read(1))
+        if typ==0:
+            raise SockIOException
         key, value = {SockIOData.typeString: lambda: (self.__readRawString(bytesIO), self.__readRawString(bytesIO)),
                       SockIOData.typeNumber: lambda: (self.__readRawString(bytesIO), self.__readRawLong(bytesIO)),
                       SockIOData.typeBinary: lambda: (self.__readRawString(bytesIO), self.__readRawBinary(bytesIO)),
