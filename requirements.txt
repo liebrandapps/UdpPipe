@@ -1,0 +1,12 @@
+certifi==2026.7.22
+charset-normalizer==3.5.1
+configparser==7.2.0
+docopt==0.6.2
+idna==3.19
+lockfile==0.12.2
+pipreqs==0.4.13
+pycryptodome==3.23.0
+python-daemon==3.1.2
+requests==2.34.2
+urllib3==2.7.0
+yarg==0.1.10
