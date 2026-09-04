@@ -78,7 +78,7 @@ class SockWrite(SockIOData):
         bytesIO.write(value)
         
     def writeLong(self, key, value, bytesIO):
-        bytesIO.write(chr(SockIOData.typeNumber))
+        bytesIO.write(bytes(SockIOData.typeNumber))
         self.__writeRawString(key, bytesIO)
         Byte0=int(abs(value / 16777216))
         value=value % 16777216
@@ -86,10 +86,10 @@ class SockWrite(SockIOData):
         value=value % 65536
         Byte2=int(abs(value / 256))
         Byte3=value % 256
-        bytesIO.write(chr(Byte0))
-        bytesIO.write(chr(Byte1))
-        bytesIO.write(chr(Byte2))
-        bytesIO.write(chr(Byte3))
+        bytesIO.write(bytes(Byte0))
+        bytesIO.write(bytes(Byte1))
+        bytesIO.write(bytes(Byte2))
+        bytesIO.write(bytes(Byte3))
         
         
 class SockRead(SockIOData):
