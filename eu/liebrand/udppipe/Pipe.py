@@ -152,6 +152,7 @@ class PipeBase:
         self.pidfile_timeout = 5         
         #self.setupLogger(self.cfg)
         self.setupOk=True
+        self._terminate=False
         #self.log.info("[%s] init done" % (section))
         self.packetsIn=0
         self.packetsOut=0
@@ -230,6 +231,7 @@ class PipeBase:
                 if line:
                     code.append("  %s" % (line.strip()))
             code.append("\n###########################################################")
+            code.append(f"\nTerminating: {self._terminate}")
         self.log.info("\n".join(code))
         
     def readConfig(self, cfg):
@@ -276,7 +278,6 @@ class Head(PipeBase):
         if not self.setupOk:
             return
         self.readHeadConfig(self.cfg)
-        self._terminate=False
         signal.signal(signal.SIGTERM, self.terminate)
         signal.signal(signal.SIGINT, self.terminate)
         self.adminSocket=None
@@ -750,7 +751,6 @@ class Tail(PipeBase):
         PipeBase.__init__(self, Tail.SECTION)
         if not self.setupOk:
             return
-        self._terminate=False
         self.readTailConfig(self.cfg)
         self.sourceIds={}
         self.sourceIdLock=threading.Lock()
