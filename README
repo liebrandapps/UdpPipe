@@ -1,1 +1,26 @@
-Look at http://www.liebrandapps.com/udppipe-a-udp-traffic-routing-utility for a description.
+
+Setup a python virtual environment
+
+python -m venv ./venv
+
+source ./venv/bin/activate
+
+pip install -r requirements.txt
+
+head: udppipe.ini
+
++ open the firewall port for udp traffic
+
+tail: udppipe.ini
+
++ Configure the remote host and port (host is the host tail is running on, port is the port on the
+head host.
++ configure the services
+
+Testing
+
++ configure the sample "TEST" service
++ on tail: start udptest -s 12345
++ on head: start udptest <host> <port> (where post is the listenport configured in head's udppipe.ini)
+
+

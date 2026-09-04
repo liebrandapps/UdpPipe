@@ -325,7 +325,9 @@ class Head(PipeBase):
         signal.signal(signal.SIGUSR1, self.toggleLogLevel)
         signal.signal(signal.SIGUSR2, self.logStats)
         signal.signal(signal.SIGQUIT, self.dumpstacks)
-        self.setupLogger(self.cfg)
+        if not self.setupLogger(self.cfg):
+            self.printLogLine(sys.stderr,"[Head] Terminating Application")
+            return
         self.log.info("[Head] Starting Listener")
         socketArray=[]
 
@@ -796,7 +798,9 @@ class Tail(PipeBase):
         signal.signal(signal.SIGTERM, self.terminate)
         signal.signal(signal.SIGINT, self.terminate)
         signal.signal(signal.SIGQUIT, self.dumpstacks)
-        self.setupLogger(self.cfg)
+        if not self.setupLogger(self.cfg):
+            self.printLogLine(sys.stderr, "[Tail] Terminating Application")
+            return
         self.log.info("[Tail] Starting Tail")
         self.controlPipe=os.pipe()
         self.fds=[]

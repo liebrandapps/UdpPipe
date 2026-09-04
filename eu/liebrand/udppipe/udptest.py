@@ -23,8 +23,8 @@ def main():
 
 def usage():
     sys.stdout = sys.stderr
-    print('Usage: udpecho -s [port]            (server)')
-    print('or:    udpecho -c host [port] <file (client)')
+    print('Usage: udptest -s [port]            (server)')
+    print('or:    udptest -c host [port] <file (client)')
     sys.exit(2)
 
 def server():
