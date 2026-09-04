@@ -956,7 +956,7 @@ class Tail(PipeBase):
                             dta=ctlBuffer.getvalue()
                             bytesSnd=0
                             while bytesSnd<len(dta):
-                                bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
+                                bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:].encode('UTF-8'))
                             dataBuffer.close()
                             ctlBuffer.close()
                             self.responseQ.task_done()
