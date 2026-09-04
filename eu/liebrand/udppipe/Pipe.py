@@ -35,9 +35,9 @@ class Config:
 
     DEFAULTS={"enableLogging" :"yes",
               "logFileName" : "/tmp/udppipe.log",
-              "maxFilesize" : "1000000",
+              "maxFilesize" : 1000000,
               "msgFormat" : "%(asctime)s, %(levelname)s, %(module)s {%(process)d}, %(lineno)d, %(message)s",
-              "logLevel" : "20",
+              "logLevel" : 20,
               "enableAdmin" :"no",
               "instanceName" : "UdpPipe Instance",
               "logToConsole" :"yes",
