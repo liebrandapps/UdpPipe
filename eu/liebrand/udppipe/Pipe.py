@@ -967,7 +967,7 @@ class Tail(PipeBase):
             except socket.error as e:
                 if e.errno == errno.EINTR and self._terminate:
                     pass
-                elif e.errno==errno.ECONNREFUSED or e.errno==errno.EBADF or e.errno==errno.ECONNRESET or e.errno==errno.ENETUNREACH:
+                elif e.errno==errno.ECONNREFUSED or e.errno==errno.EBADF or e.errno==errno.ECONNRESET or e.errno==errno.ENETUNREACH or e.errno==errno.ETIMEDOUT:
                     retry-=1
                     if retry>0:
                         waitTime=Tail.WAIT4RETRY / 10
