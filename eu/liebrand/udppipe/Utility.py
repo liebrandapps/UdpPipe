@@ -40,8 +40,8 @@ class SockWrite(SockIOData):
         length=len(strg)
         hiByte=int(abs(length / 256))
         loByte=length % 256
-        bytesIO.write(bytes(chr(hiByte)))
-        bytesIO.write(bytes(chr(loByte)))
+        bytesIO.write(bytes(hiByte))
+        bytesIO.write(bytes(loByte))
         bytesIO.write(strg.encode('UTF-8'))
 
     def writeLongDirect(self, value, bytesIO):
