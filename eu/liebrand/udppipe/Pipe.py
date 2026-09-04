@@ -13,7 +13,7 @@ import time
 import traceback
 import uuid
 from configparser import RawConfigParser
-from io import StringIO
+from io import BytesIO
 from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
 from os.path import join, exists
@@ -421,13 +421,13 @@ class Head(PipeBase):
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
                             sockRd= eu.liebrand.udppipe.Utility.SockRead()
-                            buf=StringIO(dta.decode('UTF-8'))
+                            buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
                             data=[]
                             tmp=length
                             while length>0:
                                 chunk=r.recv(length)
-                                data.append(chunk.decode('UTF-8'))
+                                data.append(chunk)
                                 length-=len(chunk)
                             self.log.debug("[Head] Received %d bytes from >Tail<" % tmp)
                             self.TCPBytesIn+=tmp
@@ -530,14 +530,14 @@ class Head(PipeBase):
                                 self.packetsIn+=1
                                 # we need to send udpData, listening Port, address
                                 util= eu.liebrand.udppipe.Utility.SockWrite()
-                                dataBuffer=StringIO()
+                                dataBuffer=BytesIO()
                                 util.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
                                 util.writeString(PipeBase.FIELD_HOST, address[0], dataBuffer)
                                 util.writeLong(PipeBase.FIELD_PORT, address[1], dataBuffer)
                                 util.writeLong(PipeBase.FIELD_SRVPORT, lstCfg[1], dataBuffer)
                                 util.writeBinary(PipeBase.FIELD_UDPDATA, udpData, dataBuffer)
                                 dta=dataBuffer.getvalue()
-                                ctlBuffer=StringIO()
+                                ctlBuffer=BytesIO()
                                 util.writeLongDirect(len(dta), ctlBuffer)
                                 util.writeBinaryDirect(dta, ctlBuffer)
                                 dta=ctlBuffer.getvalue()
@@ -600,7 +600,7 @@ class Head(PipeBase):
                 while len(dta)<5:
                     dta+=clientSocket.recv(5-len(dta))
                 sockRd= eu.liebrand.udppipe.Utility.SockRead()
-                buf=StringIO(dta.decode('UTF-8'))
+                buf=BytesIO(dta)
                 _,_,length=sockRd.read(buf)
                 data=[]
                 tmp=length
@@ -689,17 +689,17 @@ class Head(PipeBase):
                 else:
                     retData['status']='fail'
                 sockWt= eu.liebrand.udppipe.Utility.SockWrite()
-                buf=StringIO()
+                buf=BytesIO()
                 retStrg=json.dumps(retData, cls=DateTimeEncoder)
                 sockWt.writeString('result', retStrg, buf)
                 dta=buf.getvalue()
-                ctlBuffer=StringIO()
+                ctlBuffer=BytesIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
                 bytesSnd=0
                 while bytesSnd<len(dta):
-                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:].encode('UTF-8'))
+                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
                 buf.close()
                 ctlBuffer.close()
                 self.log.info("[Head] Send %d bytes to >Admin<" % bytesSnd)
@@ -827,7 +827,7 @@ class Tail(PipeBase):
                 self.fds.append(servSocket)
                 
                 # send config
-                dataBuffer=StringIO()
+                dataBuffer=BytesIO()
                 sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_CONFIG, dataBuffer)
                 for lstCfg in self.listenerConfig:
                     sockWt.writeLong("++" + lstCfg[0], lstCfg[1], dataBuffer)
@@ -848,13 +848,13 @@ class Tail(PipeBase):
                     fl.close()
                     sockWt.writeString(PipeBase.FIELD_PUBKEY, pubKey, dataBuffer)
                 dta=dataBuffer.getvalue()
-                ctlBuffer=StringIO()
+                ctlBuffer=BytesIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
                 bytesSnd=0
                 while bytesSnd<len(dta):
-                    bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:].encode('UTF-8'))
+                    bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
                 dataBuffer.close()
                 ctlBuffer.close()
                 self.log.info("[Tail] Send %d UDP port configs to head" % (len(self.listenerConfig)))
@@ -870,16 +870,16 @@ class Tail(PipeBase):
                     if len(ready[0])==0:
                         # send something every 60 seconds to avoid a timeout on the connection
                         self.log.debug("[Tail] Sending ping to head")
-                        dataBuffer=StringIO()
+                        dataBuffer=BytesIO()
                         sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_PING, dataBuffer)
                         dta=dataBuffer.getvalue()                            
-                        ctlBuffer=StringIO()
+                        ctlBuffer=BytesIO()
                         sockWt.writeLongDirect(len(dta), ctlBuffer)
                         sockWt.writeBinaryDirect(dta, ctlBuffer)
                         dta=ctlBuffer.getvalue()
                         bytesSnd=0
                         while bytesSnd<len(dta):
-                            bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:].encode('UTF-8'))
+                            bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
                         dataBuffer.close()
                         ctlBuffer.close()
                         now=datetime.datetime.now()
@@ -898,7 +898,7 @@ class Tail(PipeBase):
                                 continue
                             while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
-                            buf=StringIO(dta.decode('UTF-8'))
+                            buf=BytesIO(dta)
                             _,_,length=sockRd.read(buf)
                             self.log.debug("[Tail] Received %ld bytes from >Head<" % length)
                             data=[]
@@ -943,20 +943,20 @@ class Tail(PipeBase):
                         if r==self.controlPipe[0]:
                             os.read(self.controlPipe[0],1)
                             data=self.responseQ.get()
-                            dataBuffer=StringIO()
+                            dataBuffer=BytesIO()
                             sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
                             sockWt.writeString(PipeBase.FIELD_HOST, data[PipeBase.FIELD_HOST], dataBuffer)
                             sockWt.writeLong(PipeBase.FIELD_PORT, data[PipeBase.FIELD_PORT], dataBuffer)
                             sockWt.writeLong(PipeBase.FIELD_SRVPORT, data[PipeBase.FIELD_SRVPORT], dataBuffer)
                             sockWt.writeBinary(PipeBase.FIELD_UDPDATA, data[PipeBase.FIELD_UDPDATA], dataBuffer)
                             dta=dataBuffer.getvalue()
-                            ctlBuffer=StringIO()
+                            ctlBuffer=BytesIO()
                             sockWt.writeLongDirect(len(dta), ctlBuffer)
                             sockWt.writeBinaryDirect(dta, ctlBuffer)
                             dta=ctlBuffer.getvalue()
                             bytesSnd=0
                             while bytesSnd<len(dta):
-                                bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:].encode('UTF-8'))
+                                bytesSnd=bytesSnd+servSocket.send(dta[bytesSnd:])
                             dataBuffer.close()
                             ctlBuffer.close()
                             self.responseQ.task_done()
@@ -1054,7 +1054,7 @@ class Tail(PipeBase):
             try:
                 (clientSocket, address)=adminSocket.accept()
                 self.log.info("[Tail] Connection from 'Admin' at %s:%d" % (address[0], address[1]))
-                dataBuffer=StringIO()
+                dataBuffer=BytesIO()
                 privateKeyPath=self.privateKey
                 if not(os.path.exists(privateKeyPath)):
                     pwd=os.environ['PWD']
@@ -1090,13 +1090,13 @@ class Tail(PipeBase):
                     sockWt.writeLong(PipeBase.FIELD_PORT, self.adminPort, dataBuffer)
                     sockWt.writeString(PipeBase.FIELD_INSTANCENAME, self.instanceName, dataBuffer)
                 dta=dataBuffer.getvalue()
-                ctlBuffer=StringIO()
+                ctlBuffer=BytesIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
                 bytesSnd=0
                 while bytesSnd<len(dta):
-                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:].encode('UTF-8'))
+                    bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
                 dataBuffer.close()
                 ctlBuffer.close()     
                 clientSocket.close()

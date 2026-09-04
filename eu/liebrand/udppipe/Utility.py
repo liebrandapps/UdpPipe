@@ -1,9 +1,8 @@
-'''
+"""
 Created on 29.12.2010
 
 @author: mark
-'''
-from io import StringIO
+"""
 import sys
 import traceback
 
@@ -19,10 +18,10 @@ class SockIOData:
     typeCommand=3
     typeBinary=4
     typeLongDirect=64
-    
-        
 
-    
+
+
+
 
 class SockWrite(SockIOData):
     '''
@@ -32,39 +31,39 @@ class SockWrite(SockIOData):
         pass
 
     
-    def writeString(self, key, value, strgIO):
-        strgIO.write(chr(SockIOData.typeString))
-        self.__writeRawString(key, strgIO)
-        self.__writeRawString(value, strgIO)
-    
-    def __writeRawString(self, strg, strgIO):
+    def writeString(self, key, value, bytesIO):
+        bytesIO.write(chr(SockIOData.typeString))
+        self.__writeRawString(key, bytesIO)
+        self.__writeRawString(value, bytesIO)
+
+    def __writeRawString(self, strg, bytesIO):
         length=len(strg)
         hiByte=int(abs(length / 256))
         loByte=length % 256
-        strgIO.write(chr(hiByte))
-        strgIO.write(chr(loByte))
-        strgIO.write(strg)
-        
-    def writeLongDirect(self, value, strgIO):
-        strgIO.write(chr(SockIOData.typeLongDirect))
+        bytesIO.write(chr(hiByte))
+        bytesIO.write(chr(loByte))
+        bytesIO.write(strg)
+
+    def writeLongDirect(self, value, bytesIO):
+        bytesIO.write(chr(SockIOData.typeLongDirect))
         Byte0=int(abs(value / 16777216))
         value=value % 16777216
         Byte1=int(abs(value / 65536))
         value=value % 65536
         Byte2=int(abs(value / 256))
         Byte3=value % 256
-        strgIO.write(chr(Byte0))
-        strgIO.write(chr(Byte1))
-        strgIO.write(chr(Byte2))
-        strgIO.write(chr(Byte3))
+        bytesIO.write(chr(Byte0))
+        bytesIO.write(chr(Byte1))
+        bytesIO.write(chr(Byte2))
+        bytesIO.write(chr(Byte3))
 
         
-    def writeBinaryDirect(self, value, strgIO):
-        strgIO.write(value)
+    def writeBinaryDirect(self, value, bytesIO):
+        bytesIO.write(value)
         
-    def writeBinary(self, key, value, strgIO):
-        strgIO.write(chr(SockIOData.typeBinary))
-        self.__writeRawString(key, strgIO)
+    def writeBinary(self, key, value, bytesIO):
+        bytesIO.write(chr(SockIOData.typeBinary))
+        self.__writeRawString(key, bytesIO)
         ln=len(value)
         Byte0=int(abs(ln / 16777216))
         ln=ln % 16777216
@@ -72,25 +71,25 @@ class SockWrite(SockIOData):
         ln=ln % 65536
         Byte2=int(abs(ln / 256))
         Byte3=ln % 256
-        strgIO.write(chr(Byte0))
-        strgIO.write(chr(Byte1))
-        strgIO.write(chr(Byte2))
-        strgIO.write(chr(Byte3))
-        strgIO.write(value)
+        bytesIO.write(chr(Byte0))
+        bytesIO.write(chr(Byte1))
+        bytesIO.write(chr(Byte2))
+        bytesIO.write(chr(Byte3))
+        bytesIO.write(value)
         
-    def writeLong(self, key, value, strgIO):
-        strgIO.write(chr(SockIOData.typeNumber))
-        self.__writeRawString(key, strgIO)
+    def writeLong(self, key, value, bytesIO):
+        bytesIO.write(chr(SockIOData.typeNumber))
+        self.__writeRawString(key, bytesIO)
         Byte0=int(abs(value / 16777216))
         value=value % 16777216
         Byte1=int(abs(value / 65536))
         value=value % 65536
         Byte2=int(abs(value / 256))
         Byte3=value % 256
-        strgIO.write(chr(Byte0))
-        strgIO.write(chr(Byte1))
-        strgIO.write(chr(Byte2))
-        strgIO.write(chr(Byte3))
+        bytesIO.write(chr(Byte0))
+        bytesIO.write(chr(Byte1))
+        bytesIO.write(chr(Byte2))
+        bytesIO.write(chr(Byte3))
         
         
 class SockRead(SockIOData):
@@ -99,37 +98,37 @@ class SockRead(SockIOData):
     ###
     # Returns a tuple
     # dataType, key, value
-    def read(self, strgIO):
-        tmp=strgIO.read(1)
+    def read(self, bytesIO):
+        tmp=bytesIO.read(1)
         if len(tmp)==0:
             raise SockIOException()
         typ=ord(tmp)    
-        key, value = { SockIOData.typeString : lambda : (self.__readRawString(strgIO), self.__readRawString(strgIO)),
-                       SockIOData.typeNumber : lambda : (self.__readRawString(strgIO), self.__readRawLong(strgIO)),
-                       SockIOData.typeBinary : lambda : (self.__readRawString(strgIO), self.__readRawBinary(strgIO)),
-                       SockIOData.typeLongDirect : lambda : ( "", self.__readRawLong(strgIO))
+        key, value = { SockIOData.typeString : lambda : (self.__readRawString(bytesIO), self.__readRawString(bytesIO)),
+                       SockIOData.typeNumber : lambda : (self.__readRawString(bytesIO), self.__readRawLong(bytesIO)),
+                       SockIOData.typeBinary : lambda : (self.__readRawString(bytesIO), self.__readRawBinary(bytesIO)),
+                       SockIOData.typeLongDirect : lambda : ( "", self.__readRawLong(bytesIO))
                       } [typ]()
         return typ, key, value
     
     
-    def __readRawString(self, strgIO):
-        hiByte=ord(strgIO.read(1))
-        loByte=ord(strgIO.read(1))
+    def __readRawString(self, bytesIO):
+        hiByte=ord(bytesIO.read(1))
+        loByte=ord(bytesIO.read(1))
         length=(hiByte<<8)+loByte
-        strg=strgIO.read(length)
+        strg=bytesIO.read(length)
         return (strg)
 
-    def __readRawLong(self, strgIO):
-        byte0=ord(strgIO.read(1))
-        byte1=ord(strgIO.read(1))
-        byte2=ord(strgIO.read(1))
-        byte3=ord(strgIO.read(1))
+    def __readRawLong(self, bytesIO):
+        byte0=ord(bytesIO.read(1))
+        byte1=ord(bytesIO.read(1))
+        byte2=ord(bytesIO.read(1))
+        byte3=ord(bytesIO.read(1))
         value=(byte0 * 16777216) + (byte1*65536) + (byte2*256) + byte3
         return value
 
-    def __readRawBinary(self, strgIO):
-        length=self.__readRawLong(strgIO)
-        binary=strgIO.read(length)
+    def __readRawBinary(self, bytesIO):
+        length=self.__readRawLong(bytesIO)
+        binary=bytesIO.read(length)
         return binary
 
     
@@ -157,13 +156,12 @@ class WriteDictionary:
         sockWt=SockWrite()
         buf=StringIO(data)
         for k in data.keys:
-            if (type(data[k]) is int):
+            if type(data[k]) is int:
                 sockWt.writeLong(k, data[k], buf)
             if type(data[k]) is str:
                 sockWt.writeString(k, data[k], buf)
             if type(data[k] is dict):
-                sockWt.writeBinary(k, WriteDictionary.write(data[k]), buf)
-                
+                sockWt.writeBinary(k, self.write(data[k]), buf)
             
         
 import binascii
