@@ -97,8 +97,8 @@ class SockRead(SockIOData):
         hiByte = ord(bytesIO.read(1))
         loByte = ord(bytesIO.read(1))
         length = (hiByte << 8) + loByte
-        strg = bytesIO.read(length)
-        return (strg)
+        strg = bytesIO.read(length).decode('utf-8')
+        return strg
 
     def __readRawLong(self, bytesIO):
         byte0 = ord(bytesIO.read(1))
