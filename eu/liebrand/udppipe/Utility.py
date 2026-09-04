@@ -122,7 +122,7 @@ class ReadDictionary:
     def read(self, data):
         d = {}
         sockRd = SockRead()
-        buf = StringIO(data)
+        buf = BytesIO(data)
         try:
             while True:
                 _, key, value = sockRd.read(buf)
@@ -148,7 +148,7 @@ class WriteDictionary:
 
 
 import binascii
-from io import StringIO
+from io import StringIO, BytesIO
 
 
 class PKCS7Encoder(object):
