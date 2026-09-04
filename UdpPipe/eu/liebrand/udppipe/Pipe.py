@@ -1,46 +1,43 @@
-import socket
-import threading
-from ConfigParser import NoSectionError, NoOptionError, RawConfigParser
-from os.path import isfile, join, exists, basename
-import time
-import logging
-from logging.handlers import RotatingFileHandler
-import exceptions
-import sys
-import select
-import eu.liebrand.udppipe.Utility
-import cStringIO
-import signal
-import os
-import Queue
 import datetime
-from optparse import OptionParser
 import errno
-from daemon import runner
-from threading import Thread
-import uuid
-from datetime import date
-from Crypto.PublicKey import RSA
-from Crypto.Hash import SHA256
-from Crypto.Signature import PKCS1_v1_5
 import json
+import logging
+import os
+import queue
+import select
+import signal
+import socket
+import sys
+import threading
+import time
 import traceback
+import uuid
+from configparser import RawConfigParser
+from io import StringIO
+from logging.handlers import RotatingFileHandler
+from optparse import OptionParser
+from os.path import join, exists
+from threading import Thread
 
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
 
+import eu.liebrand.udppipe.Utility
 
 
 class Config:
 
-    STRING_KEYS=["msgFormat", "logFileName", "secretKey", "id", "forwardHost", \
+    STRING_KEYS=["msgFormat", "logFileName", "secretKey", "id", "forwardHost",
                  "headHost", "privateKey", "publicKey", "certificate", "instanceName"]
     INT_KEYS=["maxFilesize", "listenPort", "adminPort", "forwardPort", "logLevel", "headPort", "timeout", "pipePort"]
     BOOLEAN_KEYS=["enableLogging", "enableAdmin"]
 
     DEFAULTS={"enableLogging" :"yes",
               "logFileName" : "/tmp/udppipe.log",
-              "maxFilesize" : 1000000,
+              "maxFilesize" : "1000000",
               "msgFormat" : "%(asctime)s, %(levelname)s, %(module)s {%(process)d}, %(lineno)d, %(message)s",
-              "logLevel" :20,
+              "logLevel" : "20",
               "enableAdmin" :"no",
               "instanceName" : "UdpPipe Instance"
               }
@@ -84,15 +81,15 @@ class Config:
 class DateTimeEncoder(json.JSONEncoder):
 
         
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
             return {
                 '__type__' : 'seconds',
-                'seconds' : int(obj.strftime('%s')),
-                'info' : str(obj)
+                'seconds' : int(o.strftime('%s')),
+                'info' : str(o)
             }   
         else:
-            return json.JSONEncoder.default(self, obj)
+            return json.JSONEncoder.default(self, o)
     
 class DateTimeDecoder(json.JSONDecoder):
     
@@ -188,7 +185,7 @@ class PipeBase:
             self.initialLogLevel=cfg.logLevel
             self.debugLevel=False
             return True
-        except exceptions.Exception, e:
+        except Exception as e:
             self.printLogLine(sys.stderr, "[UDPPIPE] Unable to initialize logging. Reason: %s" % e)
             return False
         
@@ -211,7 +208,7 @@ class PipeBase:
         self.log.info("[%s] UDP Traffic %d bytes in, %d bytes out, TCP Traffic %d bytes in, %d bytes out" % (self.section, self.UDPBytesIn, self.UDPBytesOut, self.TCPBytesIn, self.TCPBytesOut))
         self.log.info("[%s] Uptime %s, Reconnects %d" % (self.section, str(uptime), self.reconnects))
         if self.lastPing is None:
-            self.log.info("[%s] Last Ping: never" % (self.section))
+            self.log.info("[%s] Last Ping: never" % self.section)
         else:
             ago=now-self.lastPing
             self.log.info("[%s] Last Ping: %s (%s ago)" % (self.section, str(self.lastPing), str(ago)))
@@ -234,13 +231,13 @@ class PipeBase:
         self.listenerConfig=[]
         while True:
             i+=1
-            section=PipeBase.SECTION_PORTCONFIG % (i)
+            section= PipeBase.SECTION_PORTCONFIG % i
             if cfg.hasSection(section):
                 tmpSection=cfg.setSection(section)
                 listenPort=cfg.listenPort
                 cfgId=cfg.id
                 if cfgId==PipeBase.VALUE_CONFIG:
-                    self.printLogLine(sys.stderr, "WARN: Don't use ID %s for a port configuration" % (cfgId))
+                    self.printLogLine(sys.stderr, "WARN: Don't use ID %s for a port configuration" % cfgId)
                 if self.section==Head.SECTION:
                     forwardHost=None
                     forwardPort=None
@@ -269,6 +266,8 @@ class Head(PipeBase):
     
     def __init__(self):
         PipeBase.__init__(self, Head.SECTION)
+        if not self.setupOk:
+            return
         self.readHeadConfig(self.cfg)
         self._terminate=False
         signal.signal(signal.SIGTERM, self.terminate)
@@ -290,7 +289,7 @@ class Head(PipeBase):
             self.log.info("[Head] Terminating upon Signal Term")
         self._terminate=True
         self._terminateThread=True
-        os.write(self.controlPipe[1], 'x')
+        os.write(self.controlPipe[1], b'x')
         self.pipeSocket.close()
         self.statisticEvent.set()
         if self.adminSocket is not None:
@@ -309,6 +308,9 @@ class Head(PipeBase):
         
          
     def run(self):
+        if not self.setupOk:
+            self.printLogLine(sys.stderr,"[Head] Terminating Application")
+            return
         # Important: logging cannot be setup any earlier as the RotatingFileHandler produces errors
         # in combination with the daemon function
         signal.signal(signal.SIGTERM, self.terminate)
@@ -329,14 +331,14 @@ class Head(PipeBase):
         self.isThreadRunning=False
         self.controlPipe=os.pipe()
         socketArray.append(self.controlPipe[0])
-        while not(self._terminate):
+        while not self._terminate:
             try:
-                self.log.info("[Head] Waiting for >Tail< to connect on port %d" % (self.pipePort))
+                self.log.info("[Head] Waiting for >Tail< to connect on port %d" % self.pipePort)
                 (clientSocket, address) = self.pipeSocket.accept()
                 if self.enableHostNameCheck:
                     data = socket.gethostbyname(self.tailHostname)
                     if address[0]!=data:
-                        self.log.warn("[Head] Connection attempt from wrong IP (%s but expected %s)" % (address[0], data))
+                        self.log.warning("[Head] Connection attempt from wrong IP (%s but expected %s)" % (address[0], data))
                         clientSocket.close()
                         continue
                 self.log.info("[Head] Connection from tail at %s:%d" % (address[0], address[1]))
@@ -360,7 +362,7 @@ class Head(PipeBase):
                 socketArray.append(clientSocket)
                 if self.isThreadRunning:
                     self._terminateThread=True
-                    os.write(self.controlPipe[1], 'x')
+                    os.write(self.controlPipe[1], b'x')
                     thrd.join()
                 thrd=Thread(target=self.handleMessages, args=(socketArray, clientSocket), name="Worker-Thread handling Traffic launched at " + datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"))
                 thrd.start()
@@ -369,9 +371,12 @@ class Head(PipeBase):
                 if e.errno == errno.EINTR:
                     pass
                 elif e.errno == errno.ECONNRESET:
-                    self.log.warn("[Head] Tail disconnected")
+                    self.log.warning("[Head] Tail disconnected")
                     if clientSocket in socketArray:
                         socketArray.remove(clientSocket)
+                elif e.errno == errno.EBADF:
+                    if not self._terminate:
+                        raise
                 else:
                     self.log.exception(e)
                     raise
@@ -387,7 +392,7 @@ class Head(PipeBase):
         # Step #2: listen on all the sockets
         lastReport=datetime.datetime.now()
         self._terminateThread=False
-        while not(self._terminate) and not(self._terminateThread):
+        while not self._terminate and not self._terminateThread:
             try:
                 ready=select.select(socketArray, [], [], 180)
                 if ready[0]:
@@ -400,14 +405,14 @@ class Head(PipeBase):
                             dta=r.recv(5)
                             if len(dta)==0:
                                 #connection reset
-                                self.log.warn("[Head] >Tail< disconnected")
+                                self.log.warning("[Head] >Tail< disconnected")
                                 #clientSocket.close()
                                 self._terminateThread=True
                                 continue
-                            while(len(dta)<5):
+                            while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
                             sockRd=eu.liebrand.udppipe.Utility.SockRead()
-                            buf=cStringIO.StringIO(dta)
+                            buf=StringIO(dta)
                             _,_,length=sockRd.read(buf)
                             data=[]
                             tmp=length
@@ -415,7 +420,7 @@ class Head(PipeBase):
                                 chunk=r.recv(length)
                                 data.append(chunk)
                                 length-=len(chunk)
-                            self.log.debug("[Head] Received %d bytes from >Tail<" % (tmp))
+                            self.log.debug("[Head] Received %d bytes from >Tail<" % tmp)
                             self.TCPBytesIn+=tmp
                             self.packetsIn+=1
                             readDict=eu.liebrand.udppipe.Utility.ReadDictionary()
@@ -442,7 +447,7 @@ class Head(PipeBase):
                                                     lstCfg[2]=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                                                     lstCfg[2].bind(('', lstCfg[1]))
                                                     socketArray.append(lstCfg[2])
-                                        if not(found):
+                                        if not found:
                                             s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                                             s.bind(('', fields['++' + k]))
                                             self.listenerConfig.append([ k, fields['++' + k], s, None, None ])
@@ -462,7 +467,7 @@ class Head(PipeBase):
                                                 self.adminSocket.close()
                                                 self.adminSocket=None
                                                 self.adminThread.join()
-                                            self.log.info("[Head] Admin is enabled on port %d" % (self.adminPort))
+                                            self.log.info("[Head] Admin is enabled on port %d" % self.adminPort)
                                             self._terminateAdmin=False
                                             self.adminThread=threading.Thread(target=self.adminServer, name="AdminServer-Thread launched at " + datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y"))
                                             self.adminThread.daemon=True
@@ -483,7 +488,7 @@ class Head(PipeBase):
                                         if k==lstCfg[0]:
                                             found=True
                                             break
-                                    if not(found):
+                                    if not found:
                                         lstCfg[2].close()
                                         self.listenerConfig.remove(lstCfg)
                                         socketArray.remove(lstCfg[2])
@@ -497,13 +502,13 @@ class Head(PipeBase):
                                     lstCfg[2].sendto(fields[PipeBase.FIELD_UDPDATA], (fields['host'], fields['port']))
                                     found=True
                                     self.log.debug("[Head] Forwarded response packet of %d bytes to %s:%d for port %d" % \
-                                                  (len(fields[PipeBase.FIELD_UDPDATA]), fields['host'], fields['port'], \
+                                                  (len(fields[PipeBase.FIELD_UDPDATA]), fields['host'], fields['port'],
                                                    fields['srvPort']))
                                     self.UDPBytesOut+=len(fields[PipeBase.FIELD_UDPDATA])
                                     self.packetsOut+=1
                                     break
-                            if not(found):
-                                self.log.warn("[Head] Received a response for an unknown client on port %d" % (fields['srvPort']))
+                            if not found:
+                                self.log.warning("[Head] Received a response for an unknown client on port %d" % (fields['srvPort']))
                                 continue
                                         
                         for lstCfg in self.listenerConfig:
@@ -516,40 +521,39 @@ class Head(PipeBase):
                                 self.packetsIn+=1
                                 # we need to send udpData, listening Port, address
                                 util=eu.liebrand.udppipe.Utility.SockWrite()
-                                dataBuffer=cStringIO.StringIO()
+                                dataBuffer=StringIO()
                                 util.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
                                 util.writeString(PipeBase.FIELD_HOST, address[0], dataBuffer)
                                 util.writeLong(PipeBase.FIELD_PORT, address[1], dataBuffer)
                                 util.writeLong(PipeBase.FIELD_SRVPORT, lstCfg[1], dataBuffer)
                                 util.writeBinary(PipeBase.FIELD_UDPDATA, udpData, dataBuffer)
                                 dta=dataBuffer.getvalue()
-                                ctlBuffer=cStringIO.StringIO()
+                                ctlBuffer=StringIO()
                                 util.writeLongDirect(len(dta), ctlBuffer)
                                 util.writeBinaryDirect(dta, ctlBuffer)
                                 dta=ctlBuffer.getvalue()
                                 bytesSnd=0
                                 while bytesSnd<len(dta):
                                     bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
-                                self.log.debug("[Head] Send %d bytes to >Tail<" % (bytesSnd))
+                                self.log.debug("[Head] Send %d bytes to >Tail<" % bytesSnd)
                                 self.TCPBytesOut+=bytesSnd
                                 self.packetsOut+=1
                                 dataBuffer.close()
                                 ctlBuffer.close()
                                 break
                 else:
-                    self.log.warn("[Head] No activity for 180 seconds, assuming Tail is absent")
+                    self.log.warning("[Head] No activity for 180 seconds, assuming Tail is absent")
                     self._terminateThread=True
                     self.status=0
                 now=datetime.datetime.now()
                 if (now-lastReport).seconds>=(3600*24) or self._terminateThread or self._terminate:
                     self.logStats(0, None)
                     lastReport=now
-            except select.error, (_errno, _strerror):
-                if _errno == errno.EINTR:
+            except select.error as e:
+                if e.errno == errno.EINTR:
                     continue
-            except socket.error, (_errno, _strerror):
-                if _errno == errno.ECONNRESET:
-                    self.log.warn("[Head] Tail disconnected")
+                if e.errno == errno.ECONNRESET:
+                    self.log.warning("[Head] Tail disconnected")
                 else:
                     self.log.exception(socket.error)
                 self._terminateThread=True
@@ -573,21 +577,21 @@ class Head(PipeBase):
         adminSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         adminSocket.bind(('', self.adminPort))
         adminSocket.listen(5)
-        while not(self._terminate) and not(self._terminateAdmin):
-            self.log.info("[Head] Waiting for >Admin< to connect on port %d" % (self.adminPort))
+        while not self._terminate and not self._terminateAdmin:
+            self.log.info("[Head] Waiting for >Admin< to connect on port %d" % self.adminPort)
             try:
                 (clientSocket, address)=adminSocket.accept()
                 self.log.info("[Head] Connection from >Admin< at %s:%d" % (address[0], address[1]))
                 dta=clientSocket.recv(5)
                 if len(dta)==0:
                     #connection reset
-                    self.log.warn("[Head] >Admin< disconnected")
+                    self.log.warning("[Head] >Admin< disconnected")
                     clientSocket.close()
                     continue
-                while(len(dta)<5):
+                while len(dta)<5:
                     dta+=clientSocket.recv(5-len(dta))
                 sockRd=eu.liebrand.udppipe.Utility.SockRead()
-                buf=cStringIO.StringIO(dta)
+                buf=StringIO(dta)
                 _,_,length=sockRd.read(buf)
                 data=[]
                 tmp=length
@@ -595,7 +599,7 @@ class Head(PipeBase):
                     chunk=clientSocket.recv(length)
                     data.append(chunk)
                     length-=len(chunk)
-                self.log.info("[Head] Received %d bytes from >Admin<" % (tmp))
+                self.log.info("[Head] Received %d bytes from >Admin<" % tmp)
                 self.log.debug("[Head] Data received: %s" % (''.join(data)))
                 readDict=eu.liebrand.udppipe.Utility.ReadDictionary()
                 fields=readDict.read(''.join(data))
@@ -606,7 +610,7 @@ class Head(PipeBase):
                     hsh = SHA256.new(dta)
                     verifier=PKCS1_v1_5.new(pubKeyObj)
                     signed=verifier.verify(hsh, signature)
-                    if not(signed):
+                    if not signed:
                         self.log.info("[Head] Received INVALID request from >Admin<. Reason: Signature invalid.")
                         retData['status']='fail'
                     else:
@@ -633,7 +637,7 @@ class Head(PipeBase):
                             if dct[Head.KEY_OP]==Head.OP_CHALLENGE:
                                 tmp=str(uuid.uuid4())
                                 # we do not support more than 3 pending challenges
-                                while(len(self.challenges)>3):
+                                while len(self.challenges)>3:
                                     self.challenges.remove(self.challenges[0])
                                 self.challenges.append(tmp)
                                 retData[Head.KEY_CHALLENGE]=tmp
@@ -676,11 +680,11 @@ class Head(PipeBase):
                 else:
                     retData['status']='fail'
                 sockWt=eu.liebrand.udppipe.Utility.SockWrite()
-                buf=cStringIO.StringIO()
+                buf=StringIO()
                 retStrg=json.dumps(retData, cls=DateTimeEncoder)
                 sockWt.writeString('result', retStrg, buf)
                 dta=buf.getvalue()
-                ctlBuffer=cStringIO.StringIO()
+                ctlBuffer=StringIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
@@ -689,8 +693,8 @@ class Head(PipeBase):
                     bytesSnd=bytesSnd+clientSocket.send(dta[bytesSnd:])
                 buf.close()
                 ctlBuffer.close()
-                self.log.info("[Head] Send %d bytes to >Admin<" % (bytesSnd))
-                self.log.debug("[Head] Data sent: %s" % (retStrg))
+                self.log.info("[Head] Send %d bytes to >Admin<" % bytesSnd)
+                self.log.debug("[Head] Data sent: %s" % retStrg)
                 clientSocket.close()
             except socket.error as e:
                 if self._terminate or self._terminateAdmin:
@@ -710,7 +714,7 @@ class Head(PipeBase):
             self.statisticEvent.wait(waitTime)
         baseline=[self.UDPBytesIn, self.UDPBytesOut, self.packetsIn, self.packetsOut, self.reconnects]
         lastHour=25
-        while not(self._terminate):
+        while not self._terminate:
             self.statisticEvent.wait(60)
             now=datetime.datetime.now()
             minute=now.minute
@@ -735,13 +739,15 @@ class Tail(PipeBase):
     
     def __init__(self):
         PipeBase.__init__(self, Tail.SECTION)
+        if not self.setupOk:
+            return
         self._terminate=False
-        
         self.readTailConfig(self.cfg)
         self.sourceIds={}
         self.sourceIdLock=threading.Lock()
-        self.responseQ=Queue.Queue()
+        self.responseQ=queue.Queue()
         self.connected=False
+        self.adminSocket = None
 
 
     def readTailConfig(self, cfg):
@@ -764,17 +770,20 @@ class Tail(PipeBase):
             self.log.info("[Tail] Terminating upon Signal Term")
         self._terminate=True
         if self.connected:
-            os.write(self.controlPipe[1], 'x')
+            os.write(self.controlPipe[1], b'x')
         for s in self.sourceIds.keys():
             v=self.sourceIds[s]
             v[0].put({})
-            os.write(v[1][1], 'x')
+            os.write(v[1][1], b'x')
         if self.adminSocket is not None:
             self.adminSocket.close()
             self.adminSocket=None
             
         
     def run(self):
+        if not self.setupOk:
+            self.printLogLine(sys.stderr,"[Tail] Terminating Application")
+            return
         # Important: logging cannot be setup any earlier as the RotatingFileHandler produces errors
         # in combination with the daemon function
         signal.signal(signal.SIGTERM, self.terminate)
@@ -797,7 +806,7 @@ class Tail(PipeBase):
         servSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         retry=6
         lastReport=datetime.datetime.now()
-        while not(self._terminate):
+        while not self._terminate:
             try:
                 self.log.info("[Tail] Trying to connect to >Head< at %s:%d" % (self.headHost,self.headPort))
                 servSocket.connect((self.headHost,self.headPort))
@@ -807,19 +816,19 @@ class Tail(PipeBase):
                 self.fds.append(servSocket)
                 
                 # send config
-                dataBuffer=cStringIO.StringIO()
+                dataBuffer=StringIO()
                 sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_CONFIG, dataBuffer)
                 for lstCfg in self.listenerConfig:
                     sockWt.writeLong("++" + lstCfg[0], lstCfg[1], dataBuffer)
-                if (self.enableAdmin):
+                if self.enableAdmin:
                     keyPath=self.publicKey
                     if not(os.path.exists(keyPath)):
                         pwd=os.environ['PWD']
                         keyPath=os.path.join(pwd,keyPath)
                     if not(os.path.exists(keyPath)):
-                        self.log.warn("[Tail] Could not enable admin functionality, public key not found at %s nor %s" % (self.publicKey, keyPath))
+                        self.log.warning("[Tail] Could not enable admin functionality, public key not found at %s nor %s" % (self.publicKey, keyPath))
                         self.enableAdmin=False
-                if not(self.enableAdmin):
+                if not self.enableAdmin:
                     sockWt.writeLong(PipeBase.FIELD_ADMINPORT, 0, dataBuffer)
                 else:
                     sockWt.writeLong(PipeBase.FIELD_ADMINPORT, self.adminPort, dataBuffer)
@@ -828,7 +837,7 @@ class Tail(PipeBase):
                     fl.close()
                     sockWt.writeString(PipeBase.FIELD_PUBKEY, pubKey, dataBuffer)
                 dta=dataBuffer.getvalue()
-                ctlBuffer=cStringIO.StringIO()
+                ctlBuffer=StringIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
@@ -839,21 +848,21 @@ class Tail(PipeBase):
                 ctlBuffer.close()
                 self.log.info("[Tail] Send %d UDP port configs to head" % (len(self.listenerConfig)))
                 
-                while not(self._terminate) and self.connected:
+                while not self._terminate and self.connected:
                     try:
                         ready=select.select(self.fds, [], [], 60)
-                    except select.error, (_errno, _strerror):
-                        if _errno == errno.EINTR:
+                    except select.error as e:
+                        if e.errno == errno.EINTR:
                             continue
                         else:
                             raise
                     if len(ready[0])==0:
                         # send something every 60 seconds to avoid a timeout on the connection
                         self.log.debug("[Tail] Sending ping to head")
-                        dataBuffer=cStringIO.StringIO()
+                        dataBuffer=StringIO()
                         sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_PING, dataBuffer)
                         dta=dataBuffer.getvalue()                            
-                        ctlBuffer=cStringIO.StringIO()
+                        ctlBuffer=StringIO()
                         sockWt.writeLongDirect(len(dta), ctlBuffer)
                         sockWt.writeBinaryDirect(dta, ctlBuffer)
                         dta=ctlBuffer.getvalue()
@@ -876,11 +885,11 @@ class Tail(PipeBase):
                                 self.connected=False
                                 servSocket.close()
                                 continue
-                            while(len(dta)<5):
+                            while len(dta)<5:
                                 dta+=r.recv(5-len(dta))
-                            buf=cStringIO.StringIO(dta)
+                            buf=StringIO(dta)
                             _,_,length=sockRd.read(buf)
-                            self.log.debug("[Tail] Received %ld bytes from >Head<" % (length))
+                            self.log.debug("[Tail] Received %ld bytes from >Head<" % length)
                             data=[]
                             while length>0:
                                 chunk=r.recv(length)
@@ -895,20 +904,20 @@ class Tail(PipeBase):
                             if fields[PipeBase.FIELD_OP]==PipeBase.VALUE_UDP:
                                 sourceId=str(fields[PipeBase.FIELD_SRVPORT]) + "@" + fields[PipeBase.FIELD_HOST] + ":" + str(fields[PipeBase.FIELD_PORT])
                                 self.sourceIdLock.acquire()
-                                if self.sourceIds.has_key(sourceId):
+                                if sourceId in self.sourceIds.keys():
                                     self.log.debug("[Tail] Adding packet to existing handler")
                                     self.sourceIds[sourceId][0].put(fields)
                                     #wake up thread
                                     os.write(self.sourceIds[sourceId][1][1],'x')
                                 else:
-                                    self.log.debug("[Tail] Creating new handler for source id %s" % (sourceId))
+                                    self.log.debug("[Tail] Creating new handler for source id %s" % sourceId)
                                     found=False
                                     for lstCfg in self.listenerConfig:
                                         if lstCfg[1]==fields[PipeBase.FIELD_SRVPORT]:
                                             found=True
                                             break
                                     if found:
-                                        q=Queue.Queue()
+                                        q=queue.Queue()
                                         q.put(fields)
                                         self.sourceIds[sourceId]=[q, os.pipe()]
                                         t=threading.Thread(target=self.handleUdpPacket, args=(lstCfg, sourceId, fields), name="Packet Handler for id %s launched at %s" %  (sourceId, datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
@@ -923,14 +932,14 @@ class Tail(PipeBase):
                         if r==self.controlPipe[0]:
                             os.read(self.controlPipe[0],1)
                             data=self.responseQ.get()
-                            dataBuffer=cStringIO.StringIO()
+                            dataBuffer=StringIO()
                             sockWt.writeString(PipeBase.FIELD_OP, PipeBase.VALUE_UDP, dataBuffer)
                             sockWt.writeString(PipeBase.FIELD_HOST, data[PipeBase.FIELD_HOST], dataBuffer)
                             sockWt.writeLong(PipeBase.FIELD_PORT, data[PipeBase.FIELD_PORT], dataBuffer)
                             sockWt.writeLong(PipeBase.FIELD_SRVPORT, data[PipeBase.FIELD_SRVPORT], dataBuffer)
                             sockWt.writeBinary(PipeBase.FIELD_UDPDATA, data[PipeBase.FIELD_UDPDATA], dataBuffer)
                             dta=dataBuffer.getvalue()
-                            ctlBuffer=cStringIO.StringIO()
+                            ctlBuffer=StringIO()
                             sockWt.writeLongDirect(len(dta), ctlBuffer)
                             sockWt.writeBinaryDirect(dta, ctlBuffer)
                             dta=ctlBuffer.getvalue()
@@ -953,7 +962,7 @@ class Tail(PipeBase):
                         waitTime=Tail.WAIT4RETRY / 10
                     else:
                         waitTime=Tail.WAIT4RETRY
-                    self.log.warn("[Tail] Unable to connect to host %s:%d. Will try again in %d seconds. Reason %s" % (self.headHost,self.headPort, waitTime, str(e)))
+                    self.log.warning("[Tail] Unable to connect to host %s:%d. Will try again in %d seconds. Reason %s" % (self.headHost,self.headPort, waitTime, str(e)))
                     servSocket.close()
                     if servSocket in self.fds:
                         self.fds.remove(servSocket)
@@ -961,12 +970,12 @@ class Tail(PipeBase):
                     time.sleep(waitTime)
                     servSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 else:
-                    self.log.exception(e);
+                    self.log.exception(e)
                     self.connected=False
                     servSocket.close()
                     if servSocket in self.fds:
                         self.fds.remove(servSocket)
-                    time.sleep(60);
+                    time.sleep(60)
                     servSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #self.logStats(0, None)
         self.log.info("[Tail] Terminating Tail")
@@ -977,8 +986,8 @@ class Tail(PipeBase):
         udpSocket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         lastAction=datetime.datetime.now()
         initial=True
-        while not(self._terminate) and (datetime.datetime.now()-lastAction).seconds<self.timeout:
-            if not(initial):
+        while not self._terminate and (datetime.datetime.now() - lastAction).seconds<self.timeout:
+            if not initial:
                 ready=select.select([localfds[0], udpSocket], [], [], self.timeout)
             else:
                 ready=[[localfds[0]],]
@@ -1000,17 +1009,15 @@ class Tail(PipeBase):
                             self.UDPBytesOut+=len(data[PipeBase.FIELD_UDPDATA])
                             self.packetsOut+=1
                             self.log.debug("[Tail] Send %d bytes to local address %s:%d" % (len(data[PipeBase.FIELD_UDPDATA]), listenerCfg[PipeBase.IDX_FORWARDHOST], listenerCfg[PipeBase.IDX_FORWARDPORT]))
-                        except Queue.Empty:
+                        except queue.Empty:
                             pass
                     lastAction=datetime.datetime.now()
                 if r==udpSocket:
                     #inbound udp, need to pass it back to head
                     udpData, address=udpSocket.recvfrom(4096)
-                    data={}
-                    data[PipeBase.FIELD_UDPDATA]=udpData
-                    data[PipeBase.FIELD_HOST]=fields[PipeBase.FIELD_HOST]
-                    data[PipeBase.FIELD_PORT]=fields[PipeBase.FIELD_PORT]
-                    data[PipeBase.FIELD_SRVPORT]=fields[PipeBase.FIELD_SRVPORT]
+                    data= {PipeBase.FIELD_UDPDATA: udpData, PipeBase.FIELD_HOST: fields[PipeBase.FIELD_HOST],
+                           PipeBase.FIELD_PORT: fields[PipeBase.FIELD_PORT],
+                           PipeBase.FIELD_SRVPORT: fields[PipeBase.FIELD_SRVPORT]}
                     self.responseQ.put(data)
                     os.write(self.controlPipe[1], 'x')
                     self.log.debug("[Tail] Received %d bytes from local address %s:%d" % (len(udpData), address[0], address[1]))
@@ -1018,11 +1025,11 @@ class Tail(PipeBase):
                     self.UDPBytesIn+=len(udpData)
                     self.packetsIn+=1
                     
-        # upon exit we need to remove the queue object to avoid receiving more requests
+        # upon exit, we need to remove the queue object to avoid receiving more requests
         self.sourceIdLock.acquire()
         del self.sourceIds[sourceId]
         self.sourceIdLock.release()
-        self.log.debug("[Tail] Removed handler for source id %s" % (sourceId))
+        self.log.debug("[Tail] Removed handler for source id %s" % sourceId)
 
     def adminServer(self):
         self.log.info("[Tail] Starting >Admin< Server")
@@ -1031,27 +1038,27 @@ class Tail(PipeBase):
         adminSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         adminSocket.bind(('', self.adminPort))
         adminSocket.listen(5)
-        while not(self._terminate):
-            self.log.info("[Tail] Waiting for 'Admin' to connect on port %d" % (self.adminPort))
+        while not self._terminate:
+            self.log.info("[Tail] Waiting for 'Admin' to connect on port %d" % self.adminPort)
             try:
                 (clientSocket, address)=adminSocket.accept()
                 self.log.info("[Tail] Connection from 'Admin' at %s:%d" % (address[0], address[1]))
-                dataBuffer=cStringIO.StringIO()
+                dataBuffer=StringIO()
                 privateKeyPath=self.privateKey
                 if not(os.path.exists(privateKeyPath)):
                     pwd=os.environ['PWD']
                     privateKeyPath=os.path.join(pwd,privateKeyPath)
                 if not(os.path.exists(privateKeyPath)):
-                    self.log.warn("[Tail] Could not enable admin functionality, **private** key not found at %s nor %s" % (self.privateKey, privateKeyPath))
+                    self.log.warning("[Tail] Could not enable admin functionality, **private** key not found at %s nor %s" % (self.privateKey, privateKeyPath))
                     self.enableAdmin=False
                 certficatePath=self.certificate
                 if not(os.path.exists(certficatePath)):
                     pwd=os.environ['PWD']
                     certficatePath=os.path.join(pwd, certficatePath)
                 if not(os.path.exists(certficatePath)):
-                    self.log.warn("[Tail] Could not enable admin functionality, **public** key not found at %s nor %s" % (self.publicKey, certficatePath))
+                    self.log.warning("[Tail] Could not enable admin functionality, **public** key not found at %s nor %s" % (self.publicKey, certficatePath))
                     self.enableAdmin=False
-                if not(self.enableAdmin):
+                if not self.enableAdmin:
                     sockWt.writeString(PipeBase.FIELD_ADMINSTATUS, "FAIL", dataBuffer)
                 else:
                     # read keys
@@ -1072,7 +1079,7 @@ class Tail(PipeBase):
                     sockWt.writeLong(PipeBase.FIELD_PORT, self.adminPort, dataBuffer)
                     sockWt.writeString(PipeBase.FIELD_INSTANCENAME, self.instanceName, dataBuffer)
                 dta=dataBuffer.getvalue()
-                ctlBuffer=cStringIO.StringIO()
+                ctlBuffer=StringIO()
                 sockWt.writeLongDirect(len(dta), ctlBuffer)
                 sockWt.writeBinaryDirect(dta, ctlBuffer)
                 dta=ctlBuffer.getvalue()
@@ -1082,7 +1089,7 @@ class Tail(PipeBase):
                 dataBuffer.close()
                 ctlBuffer.close()     
                 clientSocket.close()
-                self.log.info("[Tail] Send %d bytes to 'Admin'" % (bytesSnd))
+                self.log.info("[Tail] Send %d bytes to 'Admin'" % bytesSnd)
             except socket.error as e:
                 if e.errno == errno.EINTR:
                     pass
@@ -1098,21 +1105,11 @@ if __name__ == '__main__':
     parser.add_option("-T", "--tail", action="store_const", const="tail", dest="mode",
                   help="run as tail end of the pipe")
     (options, args) = parser.parse_args()
-    if(len(args)==0):
-        print "specify start|stop|restart|nodaemon"
-        sys.exit()
     if options.mode=="head":
         head=Head()
-        if(args[0]=='nodaemon'):
-            head.run()
-        else:
-            daemon_runner = runner.DaemonRunner(head)
-            daemon_runner.do_action()
-    if options.mode=="tail":
+        head.run()
+    elif options.mode=="tail":
         tail=Tail()
-        if(args[0]=='nodaemon'):
-            tail.run()
-        else:
-            daemon_runner = runner.DaemonRunner(tail)
-            daemon_runner.do_action()
-            
+        tail.run()
+    else:
+        print("Specify either '--head' or '--tail'")

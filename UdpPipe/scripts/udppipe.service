@@ -1,0 +1,16 @@
+[Unit]
+Description=UdpPipe
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=<run as user>
+Group=<run as group group>
+ExecStart=/usr/bin/python <python script home>/script.py
+
+# Give the script some time to startup
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target

@@ -3,12 +3,11 @@ Created on 29.12.2010
 
 @author: mark
 '''
-import cStringIO
-import exceptions
+from io import StringIO
 import sys
 import traceback
 
-class SockIOException(exceptions.Exception):
+class SockIOException(Exception):
     
     def __init__(self):
         return
@@ -40,7 +39,7 @@ class SockWrite(SockIOData):
     
     def __writeRawString(self, strg, strgIO):
         length=len(strg)
-        hiByte=abs(length / 256)
+        hiByte=int(abs(length / 256))
         loByte=length % 256
         strgIO.write(chr(hiByte))
         strgIO.write(chr(loByte))
@@ -48,11 +47,11 @@ class SockWrite(SockIOData):
         
     def writeLongDirect(self, value, strgIO):
         strgIO.write(chr(SockIOData.typeLongDirect))
-        Byte0=abs(value / 16777216)
+        Byte0=int(abs(value / 16777216))
         value=value % 16777216
-        Byte1=abs(value / 65536)
+        Byte1=int(abs(value / 65536))
         value=value % 65536
-        Byte2=abs(value / 256)
+        Byte2=int(abs(value / 256))
         Byte3=value % 256
         strgIO.write(chr(Byte0))
         strgIO.write(chr(Byte1))
@@ -67,11 +66,11 @@ class SockWrite(SockIOData):
         strgIO.write(chr(SockIOData.typeBinary))
         self.__writeRawString(key, strgIO)
         ln=len(value)
-        Byte0=abs(ln / 16777216)
+        Byte0=int(abs(ln / 16777216))
         ln=ln % 16777216
-        Byte1=abs(ln / 65536)
+        Byte1=int(abs(ln / 65536))
         ln=ln % 65536
-        Byte2=abs(ln / 256)
+        Byte2=int(abs(ln / 256))
         Byte3=ln % 256
         strgIO.write(chr(Byte0))
         strgIO.write(chr(Byte1))
@@ -82,11 +81,11 @@ class SockWrite(SockIOData):
     def writeLong(self, key, value, strgIO):
         strgIO.write(chr(SockIOData.typeNumber))
         self.__writeRawString(key, strgIO)
-        Byte0=abs(value / 16777216)
+        Byte0=int(abs(value / 16777216))
         value=value % 16777216
-        Byte1=abs(value / 65536)
+        Byte1=int(abs(value / 65536))
         value=value % 65536
-        Byte2=abs(value / 256)
+        Byte2=int(abs(value / 256))
         Byte3=value % 256
         strgIO.write(chr(Byte0))
         strgIO.write(chr(Byte1))
@@ -110,7 +109,7 @@ class SockRead(SockIOData):
                        SockIOData.typeBinary : lambda : (self.__readRawString(strgIO), self.__readRawBinary(strgIO)),
                        SockIOData.typeLongDirect : lambda : ( "", self.__readRawLong(strgIO))
                       } [typ]()
-        return (typ, key, value)
+        return typ, key, value
     
     
     def __readRawString(self, strgIO):
@@ -142,7 +141,7 @@ class ReadDictionary:
     def read(self, data):
         d={}
         sockRd=SockRead()
-        buf=cStringIO.StringIO(data)
+        buf=StringIO(data)
         try:
             while True:                            
                 _, key, value=sockRd.read(buf)
@@ -156,9 +155,9 @@ class WriteDictionary:
     
     def write(self, data):
         sockWt=SockWrite()
-        buf=cStringIO.StringIO(data)
+        buf=StringIO(data)
         for k in data.keys:
-            if (type(data[k]) is int) or (type(data[k]) is long):
+            if (type(data[k]) is int):
                 sockWt.writeLong(k, data[k], buf)
             if type(data[k]) is str:
                 sockWt.writeString(k, data[k], buf)
@@ -168,7 +167,7 @@ class WriteDictionary:
             
         
 import binascii
-import StringIO
+from io import StringIO
  
 class PKCS7Encoder(object):
     '''
@@ -218,9 +217,9 @@ class PKCS7Encoder(object):
         Pad an input string according to PKCS#7
         '''
         l = len(text)
-        output = StringIO.StringIO()
+        output = StringIO()
         val = self.k - (l % self.k)
-        for _ in xrange(val):
+        for _ in range(val):
             output.write('%02x' % val)
         return text + binascii.unhexlify(output.getvalue())        
         
