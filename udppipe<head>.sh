@@ -3,6 +3,8 @@
 # pid file is by default /tmp/udppipe.pid
 # log file is by default /tmp/udppipe.log
 
+#!/usr/bin/bash
+
 # if setup as a service change the working directory
 cd /home/<udppipe user>/...
 

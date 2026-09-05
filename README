@@ -1,33 +1,70 @@
 
-Setup a python virtual environment
+# Setup a python virtual environment
 
+Note: you want setup a service pls refer to the readme further below. To start and try, these are the right steps
+
+```
 python -m venv ./venv
-
 source ./venv/bin/activate
+```
+# Install the requirements
 
+```
 pip install -r requirements.txt
 
-head: udppipe.ini
+```
 
-+ open the firewall port for udp traffic
+# Configure UdpPipe
 
-tail: udppipe.ini
+
+
+## Head
+
+From the scripts directory copy the template for head. Unless you have some special setting,
+this can be used w/o any modifications.
+
+
+Launch Command is something like:
+
+```
+python3 eu/liebrand/UdpPipe/Pipe.py --head
+```
+
++ open the firewall port for tcp traffic (for the port specified in the ini default 16001)
+
+## Tail
+
+Tail usually requires more adjustments as the services are to be specified.
+
+While tail connected to head via TCP using the specified port, the service supported use UDP
 
 + Configure the remote host and port (host is the host tail is running on, port is the port on the
 head host.
-+ configure the services
 
-Testing
+For each service you have to specify the following:
++ listening port on the host where head runs (you must open the firewall, if you want to see packets
+from other than localhost)
++ Host in your LAN offering the service (e.g. runs the VPN server)
++ Port on that host where the UDP traffic should be sent to.
+
+```
+python3 eu/liebrand/UdpPipe/Pipe.py --tail
+```
+
+
+# Testing
 
 + configure the sample "TEST" service
 + on tail: start udptest -s 12345
 + on head: start udptest <host> <port> (where post is the listenport configured in head's udppipe.ini)
 
-Setting up as a Service
+# Setting up as a Service
 
 Create a separate user
 
+```
 sudo useradd -m udppipe
+```
 
 su to the user and
 + clone the repo
@@ -38,4 +75,21 @@ su to the user and
 + Adjust the path(s)
 + disable logging to console
 
+Adjust the udppipe.service to your needs:
++ user udppipe
++ path to the start script
+
+copy the udppipe.service to /etc/systemd/system
+
+start the service:
+
+```
+systemctl start udppipe.service
+```
+
+to make the service starting permanent:
+
+```
+systemctl enable udpppipe.service
+```
 
