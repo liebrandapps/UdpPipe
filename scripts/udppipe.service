@@ -5,9 +5,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=<run as user>
-Group=<run as group group>
-ExecStart=/usr/bin/python <python script home>/script.py
+User=udppipe
+Group=udppipe
+ExecStart=/home/udppipe/UdpPipe/start.sh
 
 # Give the script some time to startup
 TimeoutSec=300

@@ -23,4 +23,19 @@ Testing
 + on tail: start udptest -s 12345
 + on head: start udptest <host> <port> (where post is the listenport configured in head's udppipe.ini)
 
+Setting up as a Service
+
+Create a separate user
+
+sudo useradd -m udppipe
+
+su to the user and
++ clone the repo
++ create a venv
++ install the requirement packages
+
++ Copy the launch script to UdpPipe directory (head or tail)
++ Adjust the path(s)
++ disable logging to console
+
 
